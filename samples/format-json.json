@@ -1,0 +1,9 @@
+{
+  "deck": "Colors of Light",
+  "tags": ["physics"],
+  "cards": [
+    { "front": "Primary colors of light", "back": "Red, green and blue", "tags": ["color"] },
+    { "q": "Which visible color has the longest wavelength?", "a": "Red, around 700 nanometres" },
+    { "front": "Mixing red and green light", "back": "Yellow", "tags": ["color"] }
+  ]
+}

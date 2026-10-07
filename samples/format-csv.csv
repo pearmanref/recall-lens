@@ -1,0 +1,8 @@
+front,back,tags
+metre,"Length, symbol m",si length
+kilogram,"Mass, symbol kg",si mass
+second,"Time, symbol s",si time
+ampere,"Electric current, symbol A",si electricity
+kelvin,"Thermodynamic temperature, symbol K",si temperature
+mole,"Amount of substance, symbol mol",si chemistry
+candela,"Luminous intensity, symbol cd",si light

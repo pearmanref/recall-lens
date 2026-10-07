@@ -1,0 +1,5 @@
+# Format sample: one card per line.  front :: back :: tags
+α :: alpha :: greek
+β :: beta :: greek
+π :: pi :: greek math
+Σ :: capital sigma, used for summation :: greek math

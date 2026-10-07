@@ -1,0 +1,7 @@
+.DS_Store
+Thumbs.db
+*.log
+node_modules/
+# personal decks and progress exports stay out of the repo
+private/
+recall-lens-progress-*.json

@@ -1,0 +1,55 @@
+# Start here. Load this deck first: it teaches Recall Lens and a few ways to remember more.
+# Try a session with all cards, then filter the Tag box to "method" and turn on Reverse.
+deck: "Recall Lens: Start Here"
+tags: [recall-lens]
+cards:
+  - front: How do you reveal the answer?
+    back: Press Space or Enter, or click the card. Say your answer first, out loud or in your head. That attempt is what builds memory.
+    tags: [features]
+  - front: What does Again do?
+    back: Press 1 when you missed it. The card comes back after a few other cards, so you retry it while it is still fresh. Set how many with Again gap.
+    tags: [features]
+  - front: What does Good do?
+    back: Press 2 when you got it. The card is done for this session and returns next session.
+    tags: [features]
+  - front: What does Known do?
+    back: Press 3 when you know it cold. The card is retired from future sessions. Restore it from the Browse tab by unticking Retired.
+    tags: [features]
+  - front: You pressed the wrong key. What now?
+    back: Press Z to undo the last answer. The card and its progress go back to how they were.
+    tags: [features]
+  - front: What does Reverse do?
+    back: |
+      Shows the back first and asks you to recall the front.
+      Try it on the method cards in this deck: read the definition, name the term.
+    tags: [features]
+  - front: What does Weakest first do?
+    back: Puts the cards you have missed most at the front of the session. Pair it with a Limit of 15 for a short daily drill.
+    tags: [features]
+  - front: How do you study one topic?
+    back: Pick a tag in the Tag box before you start. Markdown files tag each card with its parent headings, so a section of your notes becomes a tag.
+    tags: [features]
+  - front: How do you move your progress to another computer?
+    back: Click Export progress to save a JSON file, then Load progress on the other machine. Until you do, progress lives only in this browser.
+    tags: [features]
+  - front: What happens when you edit a card's text?
+    back: It becomes a new card with no history. Fix typos early, before you build up progress on a card.
+    tags: [features]
+  - front: Active recall
+    back: Pulling an answer from memory before you check it. Reading the answer first skips the effort that makes it stick.
+    tags: [method]
+  - front: Spacing
+    back: Reviewing a little every day instead of all at once. Several short sessions beat one long cram for long-term memory.
+    tags: [method]
+  - front: Interleaving
+    back: Mixing topics within one session instead of drilling one topic at a time. Shuffle does this for you.
+    tags: [method]
+  - front: One fact per card
+    back: Each card should test a single idea. If you keep getting a card half right, split it into smaller cards.
+    tags: [method]
+  - front: Desirable difficulty
+    back: Recall that takes some effort strengthens memory more than easy recall. When a card feels easy every time, retire it.
+    tags: [method]
+  - front: Elaboration
+    back: Linking a new fact to something you already know. Put the link on the back of the card so you see it every review.
+    tags: [method]

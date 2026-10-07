@@ -1,0 +1,19 @@
+# Format sample: blocks separated by blank lines. First line = front, the rest = back.
+# Q: and A: prefixes also work. An optional tags: line adds tags.
+
+Mercury
+Closest planet to the Sun.
+A year there lasts 88 Earth days.
+tags: planets inner
+
+Jupiter
+Largest planet in the solar system.
+tags: planets outer
+
+Q: Which planet has a day longer than its year?
+A: Venus. One rotation takes about 243 Earth days; one orbit takes about 225.
+tags: planets inner
+
+Q: Which planet is tilted on its side?
+A: Uranus, with an axial tilt of about 98 degrees.
+tags: planets outer

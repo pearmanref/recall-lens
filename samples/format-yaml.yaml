@@ -1,0 +1,20 @@
+# Format sample: native YAML deck. Spec: docs/FORMATS.md
+deck: Chemical Elements
+tags: [chemistry]
+cards:
+  - front: H
+    back: Hydrogen
+    tags: [nonmetal]
+  - front: He
+    back: Helium
+    tags: [noble-gas]
+  - front: Fe
+    back: |
+      Iron.
+      Latin name ferrum, which gives the symbol.
+    tags: [metal]
+  - front: Au
+    back: Gold. Latin name aurum.
+    tags: [metal]
+  - q: Most abundant gas in Earth's atmosphere
+    a: Nitrogen, about 78 percent

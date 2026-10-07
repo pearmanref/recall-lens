@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recall Lens</title>
+  <meta name="description" content="Local, offline flashcards from CSV, Anki text exports, plain text, YAML or JSON.">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">&#9635;</span> Recall Lens <span class="ver">v0.1</span></div>
+    <div class="pills" id="pills"></div>
+    <div class="actions">
+      <button class="btn" id="btnImport" title="Import deck files">Import</button>
+      <button class="btn ghost" id="btnExport" title="Download progress as JSON">Export progress</button>
+      <button class="btn ghost" id="btnImportProg" title="Restore progress JSON">Load progress</button>
+      <input type="file" id="fileDeck" multiple accept=".csv,.tsv,.txt,.md,.yaml,.yml,.json" hidden>
+      <input type="file" id="fileProg" accept=".json" hidden>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="side">
+      <div class="drop" id="drop">
+        <strong>Drop files here</strong>
+        <span>.md notes &middot; .csv &middot; .tsv &middot; Anki .txt &middot; .txt &middot; .yaml &middot; .json</span>
+      </div>
+      <div class="side-head">
+        <span>Decks</span>
+        <span class="muted" id="deckCount"></span>
+      </div>
+      <ul class="decks" id="decks"></ul>
+      <div class="log" id="log"></div>
+    </aside>
+
+    <main class="main">
+      <nav class="tabs">
+        <button class="tab active" data-view="study">Study</button>
+        <button class="tab" data-view="browse">Browse</button>
+        <button class="tab" data-view="help">Formats &amp; keys</button>
+      </nav>
+
+      <!-- STUDY -->
+      <section class="view" id="view-study">
+        <div class="setup" id="setup">
+          <div class="row">
+            <label>Tag <select id="optTag"><option value="">All tags</option></select></label>
+            <label>Limit <input type="number" id="optLimit" min="0" step="5" value="0" title="0 = all"></label>
+            <label>Again gap <input type="number" id="optGap" min="1" max="20" value="3" title="Cards before a missed card returns"></label>
+            <label class="chk"><input type="checkbox" id="optShuffle" checked> Shuffle</label>
+            <label class="chk"><input type="checkbox" id="optWeak"> Weakest first</label>
+            <label class="chk"><input type="checkbox" id="optReverse"> Reverse: back &rarr; front</label>
+          </div>
+          <div class="row">
+            <button class="btn primary" id="btnStart">Start session</button>
+            <span class="muted" id="pool"></span>
+          </div>
+        </div>
+
+        <div class="stage hidden" id="stage">
+          <div class="progress"><div class="bar" id="bar"></div></div>
+          <div class="meta">
+            <span id="metaDeck"></span>
+            <span id="metaTags"></span>
+            <span id="metaCount"></span>
+          </div>
+          <div class="card" id="card" tabindex="0">
+            <div class="side-label" id="sideLabel">FRONT</div>
+            <div class="face" id="front"></div>
+            <div class="divider hidden" id="divider"></div>
+            <div class="face back hidden" id="back"></div>
+            <div class="hint" id="hint">Space / click to reveal</div>
+          </div>
+          <div class="answer" id="answer">
+            <button class="btn again" data-a="again" disabled>Again <kbd>1</kbd></button>
+            <button class="btn good" data-a="good" disabled>Good <kbd>2</kbd></button>
+            <button class="btn known" data-a="known" disabled>Known &middot; retire <kbd>3</kbd></button>
+            <button class="btn ghost" id="btnUndo" disabled>Undo <kbd>Z</kbd></button>
+            <button class="btn ghost" id="btnEnd">End <kbd>Esc</kbd></button>
+          </div>
+          <div class="tally" id="tally"></div>
+        </div>
+
+        <div class="summary hidden" id="summary"></div>
+      </section>
+
+      <!-- BROWSE -->
+      <section class="view hidden" id="view-browse">
+        <div class="row">
+          <input type="search" id="q" placeholder="Filter by front, back or tag">
+          <label class="chk"><input type="checkbox" id="onlyRetired"> Retired only</label>
+          <span class="muted" id="browseCount"></span>
+        </div>
+        <div class="tablewrap">
+          <table class="grid">
+            <thead><tr><th>Front</th><th>Back</th><th>Tags</th><th>Deck</th><th title="seen / again">S/A</th><th>Retired</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- HELP -->
+      <section class="view hidden" id="view-help">
+        <div class="help">
+          <h3>Keys</h3>
+          <table class="keys">
+            <tr><td><kbd>Space</kbd> / <kbd>Enter</kbd></td><td>Reveal answer</td></tr>
+            <tr><td><kbd>1</kbd></td><td>Again &mdash; comes back after N cards, set by Again gap</td></tr>
+            <tr><td><kbd>2</kbd></td><td>Good &mdash; done for this session</td></tr>
+            <tr><td><kbd>3</kbd></td><td>Known &mdash; retired from future sessions; restore from Browse</td></tr>
+            <tr><td><kbd>Z</kbd></td><td>Undo last answer</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>End session</td></tr>
+          </table>
+          <h3>Formats</h3>
+          <p>Full spec in <code>docs/FORMATS.md</code>. New here? Load <code>samples/start-here.yaml</code>. Each format has a <code>samples/format-*</code> example.</p>
+          <pre>Markdown   .md note loaded as-is: leaf heading = front, body = back,
+           parent headings = tags; filter a section with the Tag box
+CSV        front,back,tags         header optional
+Anki .txt  File &gt; Export &gt; Notes in Plain Text; #separator and #html headers honored
+Text       front :: back :: tags   one per line
+           or blocks separated by blank lines; Q:/A: or first line = front
+YAML       deck: Chemical Elements
+           cards:
+             - front: H
+               back: Hydrogen
+               tags: [nonmetal]</pre>
+          <p class="muted">All data stays in this browser's localStorage. Export progress to back it up or move machines.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/parsers.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/scheduler.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

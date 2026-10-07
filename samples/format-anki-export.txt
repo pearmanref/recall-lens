@@ -1,0 +1,9 @@
+#separator:tab
+#html:true
+#tags column:3
+#deck:World Capitals
+France	Paris	geography europe
+Japan	Tokyo	geography asia
+Kenya	Nairobi	geography africa
+Canada	Ottawa<br>Not Toronto, the largest city	geography americas
+The capital of Australia is {{c1::Canberra::city}}	Chosen as a compromise between Sydney and Melbourne	geography cloze
