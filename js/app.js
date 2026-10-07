@@ -1,26 +1,22 @@
 /*
- * Recall Lens — app.js
- * Layer 4: DOM only. Reads from store, drives a scheduler Session,
- * renders. Contains no parsing or scheduling rules of its own.
+ * Page rendering and user input.
  */
 (function () {
   'use strict';
-  const { parsers, store, scheduler } = window.RL;
+  const { parsers, store, scheduler, sources } = window.RL;
   const $ = (id) => document.getElementById(id);
 
   let session = null;
   let revealed = false;
   let reverse = false;
 
-  // ---------- utilities ----------
   function esc(s) {
     return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
-  // Minimal markup: `inline code` only. Everything else is escaped text.
+  // All text is escaped; only `inline code` is formatted.
   function render(s) { return esc(s).replace(/`([^`\n]+)`/g, '<code>$1</code>'); }
 
-  // One block per event: first line is the summary, following lines are its details.
-  // Blocks are prepended so the newest event is on top; lines inside a block stay in order.
+  // Adds one log entry. Newest entries appear first.
   function logBlock(lines) {
     const block = document.createElement('div');
     const time = new Date().toLocaleTimeString();
@@ -42,7 +38,6 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
-  // ---------- import ----------
   async function importFiles(files) {
     for (const f of files) {
       try {
@@ -61,7 +56,46 @@
     refresh();
   }
 
-  // ---------- sidebar / pills ----------
+  // Uses the same parsing and storage as a dropped file.
+  async function importLink(input, opts) {
+    const o = opts || {};
+    let src;
+    try {
+      src = sources.normalizeUrl(input, location.href);
+    } catch (e) {
+      logBlock([[`${String(input).trim() || 'Link'}: ${e.message}`, 'e']]);
+      return false;
+    }
+    try {
+      const text = await sources.fetchText(src, { refresh: o.refresh });
+      const parsed = parsers.parseFile(src.name, text);
+      if (!parsed.cards.length) { log(`${src.name}: no cards found`, 'e'); return false; }
+      const r = store.addDeck(parsed, src.name, src.url);
+      const from = src.kind === 'github' ? 'from GitHub' : 'from this site';
+      const verb = o.refresh ? 'refreshed' : r.replaced ? 'replaced existing deck' : '';
+      const lines = [[`${src.name}: ${parsed.cards.length} cards [${parsed.format}] \u00b7 ${from}${verb ? ' \u00b7 ' + verb : ''}`]];
+      parsed.warnings.slice(0, 5).forEach((w) => lines.push(['  ' + w, 'w']));
+      if (parsed.warnings.length > 5) lines.push([`  +${parsed.warnings.length - 5} more warnings`, 'w']);
+      logBlock(lines);
+      return true;
+    } catch (e) {
+      logBlock([[`${src.name}: ${e.message}`, 'e']]);
+      return false;
+    } finally {
+      if (!o.batch) refresh();
+    }
+  }
+
+  async function importDeckLinksFromAddress() {
+    const { links, dropped, cleanHref } = sources.deckLinksFrom(location.href);
+    if (!links.length) return;
+    // Removes ?deck= from the address so a reload does not import the decks again.
+    history.replaceState(null, '', cleanHref);
+    for (const l of links) await importLink(l, { batch: true });
+    if (dropped) log(`${dropped} more deck links ignored; the limit is ${sources.MAX_LINK_DECKS} per link`, 'w');
+    refresh();
+  }
+
   function renderDecks() {
     const ul = $('decks');
     const ds = store.decks();
@@ -75,10 +109,13 @@
       const li = document.createElement('li');
       li.className = 'deck';
       li.innerHTML = `<input type="checkbox" ${d.selected ? 'checked' : ''} title="Include in session">
-        <span class="name" title="${esc(d.source)}">${esc(d.name)}</span>
+        <span class="name" title="${esc(d.url || d.source)}">${esc(d.name)}</span>
+        ${d.url ? '<button class="rf" title="Download again from its link. Progress is kept.">&#8635;</button>' : '<span></span>'}
         <button class="x" title="Remove deck. Progress is kept.">&times;</button>
-        <span class="sub">${d.cards.length - retired} active &middot; ${retired} retired &middot; ${d.format}</span>`;
+        <span class="sub">${d.cards.length - retired} active &middot; ${retired} retired &middot; ${d.format}${d.url ? ' &middot; link' : ''}</span>`;
       li.querySelector('input').onchange = (e) => { store.setSelected(d.id, e.target.checked); refresh(); };
+      const rf = li.querySelector('.rf');
+      if (rf) rf.onclick = async () => { rf.disabled = true; await importLink(d.url, { refresh: true }); };
       li.querySelector('.x').onclick = () => {
         if (confirm(`Remove deck "${d.name}"? Card progress is kept and returns if you re-import.`)) { store.removeDeck(d.id); refresh(); }
       };
@@ -120,7 +157,6 @@
     if (!$('view-browse').classList.contains('hidden')) renderBrowse();
   }
 
-  // ---------- study ----------
   function startSession() {
     const s = store.settings();
     const opts = {
@@ -211,7 +247,6 @@
     refresh();
   }
 
-  // ---------- browse ----------
   function renderBrowse() {
     const q = $('q').value.trim().toLowerCase();
     const onlyRetired = $('onlyRetired').checked;
@@ -232,7 +267,6 @@
     }).join('');
   }
 
-  // ---------- wiring ----------
   function switchView(v) {
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === v));
     document.querySelectorAll('.view').forEach((s) => s.classList.toggle('hidden', s.id !== 'view-' + v));
@@ -244,6 +278,14 @@
     $('btnImport').onclick = () => $('fileDeck').click();
     $('drop').onclick = () => $('fileDeck').click();
     $('fileDeck').onchange = (e) => { importFiles([...e.target.files]); e.target.value = ''; };
+    $('urlForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const btn = $('urlLoad');
+      btn.disabled = true;
+      const ok = await importLink($('urlInput').value);
+      btn.disabled = false;
+      if (ok) $('urlInput').value = '';
+    };
     $('btnExport').onclick = () => download(`recall-lens-progress-${new Date().toISOString().slice(0, 10)}.json`, store.exportProgress());
     $('btnImportProg').onclick = () => $('fileProg').click();
     $('fileProg').onchange = async (e) => {
@@ -254,8 +296,7 @@
     };
 
     const drop = $('drop');
-    // dragenter/dragleave fire for every child element, so count them; the highlight
-    // clears when the count returns to zero: drag left the window, was cancelled, or dropped.
+    // Counts enter and leave events so the highlight clears when a drag ends or leaves the window.
     let dragDepth = 0;
     const setOver = (on) => drop.classList.toggle('over', on);
     document.addEventListener('dragenter', (e) => { e.preventDefault(); dragDepth++; setOver(true); });
@@ -301,4 +342,5 @@
   store.load();
   wire();
   refresh();
+  importDeckLinksFromAddress();
 })();

@@ -12,6 +12,8 @@ Format is chosen by file extension. A `.txt` file is sniffed: Anki headers or mo
 
 Each format has a sample in `samples/`, named `format-<type>`.
 
+Any format can be loaded from a file on your device or from a GitHub link; see *Load from a link* in the README. The format is detected from the file name at the end of the link.
+
 ---
 
 ## 0. Markdown outline (`.md`) — existing notes, loaded as-is

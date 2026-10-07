@@ -1,16 +1,6 @@
 /*
- * Recall Lens — store.js
- * Layer 2: the ONLY module that touches persistence.
- *
- * Two kinds of data, deliberately separated:
- *   decks    — imported content. Replaceable: re-import the file any time.
- *   progress — what you know, keyed by card id. The valuable part; exportable.
- *
- * Because progress is keyed by content hash, not by deck, the same card in two decks
- * shares one retention record, and re-importing an edited deck keeps progress for
- * every card whose front/back did not change.
- *
- * Swap localStorage for IndexedDB or a file later by re-implementing load()/save() only.
+ * Saves decks, progress and settings to localStorage.
+ * Progress is keyed by card id, so it is kept when a deck is removed or re-imported.
  */
 (function (root) {
   'use strict';
@@ -40,7 +30,7 @@
     return state;
   }
 
-  // Schema migrations live here. Bump SCHEMA and add a step when the shape changes.
+  // Fills missing fields in saved data. Add a step here when the saved format changes.
   function migrate(s) {
     if (!s || typeof s !== 'object') return blank();
     s.decks = s.decks || {};
@@ -61,12 +51,12 @@
 
   function onChange(fn) { listeners.push(fn); }
 
-  // ---------- decks ----------
   function deckIdFor(name) {
     return 'd' + RL.parsers.hash(name.toLowerCase()).slice(1);
   }
 
-  function addDeck(parsed, sourceFile) {
+  // url is stored for decks loaded from a link and used by refresh.
+  function addDeck(parsed, sourceFile, url) {
     const id = deckIdFor(parsed.name);
     const existing = state.decks[id];
     state.decks[id] = {
@@ -74,6 +64,7 @@
       name: parsed.name,
       format: parsed.format,
       source: sourceFile,
+      url: url || null,
       imported: new Date().toISOString(),
       selected: existing ? existing.selected : true,
       cards: parsed.cards,
@@ -94,7 +85,6 @@
     return out;
   }
 
-  // ---------- progress ----------
   function progress(id) {
     return state.progress[id] || { retired: false, seen: 0, again: 0, good: 0, last: null };
   }
@@ -108,11 +98,9 @@
     setProgress(id, p);
   }
 
-  // ---------- settings ----------
   function settings() { return state.settings; }
   function setSetting(k, v) { state.settings[k] = v; save(); }
 
-  // ---------- export / import of progress ----------
   function exportProgress() {
     return JSON.stringify({ app: 'recall-lens', schema: SCHEMA, exported: new Date().toISOString(), progress: state.progress, settings: state.settings }, null, 2);
   }

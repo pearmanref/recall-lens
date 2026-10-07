@@ -9,7 +9,7 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand"><span class="logo">&#9635;</span> Recall Lens <span class="ver">v0.1</span></div>
+    <div class="brand"><span class="logo">&#9635;</span> Recall Lens <span class="ver">v0.2</span></div>
     <div class="pills" id="pills"></div>
     <div class="actions">
       <button class="btn" id="btnImport" title="Import deck files">Import</button>
@@ -26,6 +26,10 @@
         <strong>Drop files here</strong>
         <span>.md notes &middot; .csv &middot; .tsv &middot; Anki .txt &middot; .txt &middot; .yaml &middot; .json</span>
       </div>
+      <form class="urlrow" id="urlForm" autocomplete="off">
+        <input type="text" id="urlInput" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="or paste a GitHub file link">
+        <button class="btn" id="urlLoad" type="submit">Load</button>
+      </form>
       <div class="side-head">
         <span>Decks</span>
         <span class="muted" id="deckCount"></span>
@@ -41,7 +45,6 @@
         <button class="tab" data-view="help">Formats &amp; keys</button>
       </nav>
 
-      <!-- STUDY -->
       <section class="view" id="view-study">
         <div class="setup" id="setup">
           <div class="row">
@@ -85,7 +88,6 @@
         <div class="summary hidden" id="summary"></div>
       </section>
 
-      <!-- BROWSE -->
       <section class="view hidden" id="view-browse">
         <div class="row">
           <input type="search" id="q" placeholder="Filter by front, back or tag">
@@ -100,7 +102,6 @@
         </div>
       </section>
 
-      <!-- HELP -->
       <section class="view hidden" id="view-help">
         <div class="help">
           <h3>Keys</h3>
@@ -125,12 +126,15 @@ YAML       deck: Chemical Elements
              - front: H
                back: Hydrogen
                tags: [nonmetal]</pre>
+          <h3>Load from a link</h3>
+          <p>Paste a GitHub file link under the drop zone, or open the page with <code>?deck=&lt;link&gt;</code>. Accepted: <code>github.com/&lt;owner&gt;/&lt;repo&gt;/blob/&hellip;</code>, <code>raw.githubusercontent.com/&hellip;</code>, <code>gist.githubusercontent.com/&hellip;</code>. On the hosted site, a path such as <code>samples/start-here.yaml</code> also works. Decks loaded from a link get a &#8635; button to download them again.</p>
           <p class="muted">All data stays in this browser's localStorage. Export progress to back it up or move machines.</p>
         </div>
       </section>
     </main>
   </div>
 
+  <script src="js/sources.js"></script>
   <script src="js/parsers.js"></script>
   <script src="js/store.js"></script>
   <script src="js/scheduler.js"></script>

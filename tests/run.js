@@ -1,4 +1,4 @@
-// Parser + scheduler tests. Run: node tests/run.js. No dependencies.
+// Run: node tests/run.js
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -6,7 +6,8 @@ const assert = require('assert');
 
 require('../js/parsers.js');
 require('../js/scheduler.js');
-const { parsers, scheduler } = globalThis.RL;
+require('../js/sources.js');
+const { parsers, scheduler, sources } = globalThis.RL;
 
 let pass = 0, fail = 0;
 function t(name, fn) {
@@ -126,9 +127,9 @@ const cards = 'abcdef'.split('').map((x) => ({ id: x, front: x, back: x, tags: [
 t('again re-inserts N later; good/known clear; known retires', () => {
   const st = fakeStore();
   const s = new scheduler.Session(cards, { againGap: 2 }, st);
-  s.answer('again');                       // a -> pos 2
+  s.answer('again');
   assert.deepStrictEqual(s.queue.map((c) => c.id), ['b', 'c', 'a', 'd', 'e', 'f']);
-  s.answer('good'); s.answer('known');     // b good, c retired
+  s.answer('good'); s.answer('known');
   assert.strictEqual(s.current().id, 'a');
   assert.ok(st.isRetired('c'));
   assert.strictEqual(st.progress('a').again, 1);
@@ -152,8 +153,69 @@ t('buildQueue excludes retired, filters tag, limits', () => {
 });
 t('first-try rate counts only cards never missed this session', () => {
   const s = new scheduler.Session(cards.slice(0, 2), { againGap: 1 }, fakeStore());
-  s.answer('again'); s.answer('good'); s.answer('good'); // a missed then good, b good
+  s.answer('again'); s.answer('good'); s.answer('good');
   assert.strictEqual(s.firstTryRate(), 50);
+});
+
+console.log('sources');
+const HOSTED = 'https://pearmanref.github.io/recall-lens/';
+const LOCAL = 'file:///C:/Users/x/recall-lens/index.html';
+const norm = (s, page) => sources.normalizeUrl(s, page || HOSTED);
+const refused = (s, page) => { try { norm(s, page); return false; } catch (e) { return e instanceof sources.SourceError; } };
+t('raw link passes through, name from path', () => {
+  const r = norm('https://raw.githubusercontent.com/pearmanref/recall-lens/main/samples/start-here.yaml');
+  assert.strictEqual(r.url, 'https://raw.githubusercontent.com/pearmanref/recall-lens/main/samples/start-here.yaml');
+  assert.strictEqual(r.kind, 'github');
+  assert.strictEqual(r.name, 'start-here.yaml');
+});
+t('github.com blob and raw links convert to raw host', () => {
+  const want = 'https://raw.githubusercontent.com/o/r/main/decks/linux-paths.csv';
+  assert.strictEqual(norm('https://github.com/o/r/blob/main/decks/linux-paths.csv').url, want);
+  assert.strictEqual(norm('https://github.com/o/r/raw/main/decks/linux-paths.csv').url, want);
+  assert.strictEqual(norm('  https://github.com/o/r/blob/main/decks/linux-paths.csv#L3  ').url, want);
+  assert.strictEqual(norm('https://github.com/o/r/raw/refs/heads/main/a.csv').url, 'https://raw.githubusercontent.com/o/r/refs/heads/main/a.csv');
+});
+t('file name: query dropped, percent-encoding decoded', () => {
+  assert.strictEqual(norm('https://raw.githubusercontent.com/o/r/main/My%20Deck.csv?token=x').name, 'My Deck.csv');
+});
+t('gist raw host allowed', () => {
+  assert.strictEqual(norm('https://gist.githubusercontent.com/u/abc123/raw/deck.yaml').kind, 'github');
+});
+t('refused: http, other hosts, look-alikes, schemes, credentials, ports, repo pages', () => {
+  for (const s of [
+    'http://raw.githubusercontent.com/o/r/main/a.csv',
+    'https://example.com/a.csv',
+    'https://raw.githubusercontent.com.evil.example/a.csv',
+    'https://evil-githubusercontent.com/a.csv',
+    'https://githubusercontent.com/a.csv',
+    'javascript:alert(1)',
+    'data:text/plain,a::b',
+    'file:///etc/passwd',
+    'https://user:pw@raw.githubusercontent.com/o/r/main/a.csv',
+    'https://raw.githubusercontent.com:444/o/r/main/a.csv',
+    'https://github.com/o/r',
+    'https://github.com/o/r/tree/main/decks',
+    '',
+    'not a link',
+  ]) assert.ok(refused(s), 'should refuse: ' + s);
+});
+t('same-site paths: allowed downward on hosted page only', () => {
+  const r = norm('samples/start-here.yaml');
+  assert.strictEqual(r.url, HOSTED + 'samples/start-here.yaml');
+  assert.strictEqual(r.kind, 'site');
+  assert.strictEqual(norm(HOSTED + 'decks/a.csv').kind, 'site');
+  for (const s of ['../other/a.csv', 'decks/../../a.csv', 'decks/%2e%2e/%2e%2e/a.csv', '/a.csv', '//evil.example/a.csv', '\\a.csv'])
+    assert.ok(refused(s), 'should refuse: ' + s);
+  assert.ok(refused('samples/start-here.yaml', LOCAL), 'relative path refused when opened from disk');
+  assert.strictEqual(norm('https://raw.githubusercontent.com/o/r/main/a.csv', LOCAL).kind, 'github', 'GitHub links still work from disk');
+});
+t('?deck= links: read, capped at 10, removed from address', () => {
+  const many = Array.from({ length: 12 }, (_, i) => 'deck=d' + i + '.csv').join('&');
+  const r = sources.deckLinksFrom(HOSTED + '?x=1&' + many + '#top');
+  assert.strictEqual(r.links.length, 10);
+  assert.strictEqual(r.dropped, 2);
+  assert.strictEqual(r.cleanHref, HOSTED + '?x=1#top');
+  assert.deepStrictEqual(sources.deckLinksFrom(HOSTED).links, []);
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

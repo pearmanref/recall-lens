@@ -1,15 +1,7 @@
 /*
- * Recall Lens — scheduler.js
- * Layer 3: decides WHICH card comes next. Pure logic, no DOM.
- *
- * Current model: in-session reinforcement queue. It does not schedule reviews across days.
- *   Again -> card is re-inserted `againGap` positions later in this session.
- *   Good  -> card leaves this session.
- *   Known -> card is retired and skipped in future sessions until restored.
- *
- * The store only receives progress records, so a future SM-2 / FSRS scheduler can be
- * dropped in by replacing this file. Keep the Session interface: current, answer, undo,
- * done, stats. Add due-date fields to progress.
+ * Orders cards within a session.
+ * Again: the card returns after againGap cards. Good: the card leaves the session.
+ * Known: the card is retired. Reviews are not scheduled across days.
  */
 (function (root) {
   'use strict';
@@ -23,12 +15,12 @@
     return a;
   }
 
-  // Build the deck for a session from all candidate cards + options.
+  // Removes retired cards, then applies the tag filter, order and limit.
   function buildQueue(cards, opts, isRetired) {
     let q = cards.filter((c) => !isRetired(c.id));
     if (opts.tag) q = q.filter((c) => c.tags.includes(opts.tag));
     if (opts.weakFirst && opts.progress) {
-      // cards you've missed most come first; ties random
+      // Most-missed cards first; ties in random order.
       shuffle(q);
       q.sort((a, b) => opts.progress(b.id).again - opts.progress(a.id).again);
     } else if (opts.shuffle) shuffle(q);
@@ -45,7 +37,7 @@
       this.history = [];
       this.stats = { again: 0, good: 0, known: 0 };
       this.cleared = new Set();
-      this.missed = new Set(); // ids answered Again at least once this session
+      this.missed = new Set(); // Cards answered Again in this session.
     }
     current() { return this.queue[0] || null; }
     done() { return this.queue.length === 0; }

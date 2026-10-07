@@ -1,21 +1,13 @@
 /*
- * Recall Lens — parsers.js
- * Layer 1: every input format is converted into ONE canonical card shape.
- * The store, scheduler and UI never know what format a card came from.
- *
- * Canonical card:
- *   { id, front, back, tags: string[] }
- *   id = stable hash of front+back, so progress survives re-imports of the same file.
- *
- * Adding a format = add a parseX(text) function and register it in detect() and PARSERS.
+ * Converts deck files into cards: { id, front, back, tags }.
+ * id is a hash of front and back, so unchanged cards keep their progress after re-import.
  */
 (function (root) {
   'use strict';
   const RL = (root.RL = root.RL || {});
 
-  // ---------- helpers ----------
   function hash(str) {
-    // FNV-1a 32-bit -> base36. Not crypto; just a stable content key.
+    // FNV-1a hash. Not suitable for security use.
     let h = 0x811c9dc5;
     for (let i = 0; i < str.length; i++) {
       h ^= str.charCodeAt(i);
@@ -41,7 +33,7 @@
     return [...new Set(arr.map((x) => String(x).trim()).filter(Boolean))];
   }
 
-  // Anki cloze {{c1::answer::hint}} -> front shows [hint|...], back shows answer.
+  // Cloze {{c1::answer::hint}}: the front shows [hint] or [...], the back shows the full text.
   const CLOZE = /\{\{c\d+::(.*?)(?:::(.*?))?\}\}/g;
   function expandCloze(front, back) {
     if (!CLOZE.test(front)) return [front, back];
@@ -59,7 +51,7 @@
     return { id: hash(f + '\u241f' + b), front: f, back: b, tags: normTags(tags) };
   }
 
-  // RFC 4180-style delimited parser. Handles quotes, escaped quotes and embedded newlines.
+  // Supports quoted fields, doubled quotes and line breaks inside quotes.
   function parseDelimited(text, delim) {
     const rows = [];
     let row = [], field = '', q = false, i = 0;
@@ -82,7 +74,6 @@
     return rows.filter((r) => r.some((f) => f.trim() !== ''));
   }
 
-  // ---------- CSV / TSV ----------
   const HEAD = {
     front: ['front', 'question', 'q', 'term', 'prompt'],
     back: ['back', 'answer', 'a', 'definition', 'response'],
@@ -105,7 +96,6 @@
     return { cards, warnings };
   }
 
-  // ---------- Anki plain-text export ----------
   const SEP = { tab: '\t', comma: ',', semicolon: ';', pipe: '|', space: ' ', colon: ':' };
   function parseAnki(text) {
     const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
@@ -134,10 +124,9 @@
     return { cards, warnings, name: meta.deck ? meta.deck.split('::').pop() : null };
   }
 
-  // ---------- Plain text ----------
-  // Mode A: one card per line  "front :: back"
-  // Mode B: blocks separated by blank lines; "Q:/A:" prefixes or first line = front, rest = back.
-  //         Optional "tags: a b" line inside a block.
+  // Line mode: front :: back :: tags, one card per line.
+  // Block mode: cards separated by blank lines. Q: and A: prefixes, or first line as front.
+  // An optional tags: line adds tags.
   function parseText(text) {
     const cards = [], warnings = [];
     const lines = text.split(/\r?\n/);
@@ -168,11 +157,9 @@
     return { cards, warnings };
   }
 
-  // ---------- Markdown outline ----------
-  // Every leaf heading with no child headings and some body text becomes a card:
-  //   heading text -> front, body -> back, ancestor headings below the H1 -> tags.
-  // The H1 becomes the deck name. Frontmatter, horizontal rules, "Refs:" lines and code-fence
-  // markers are stripped; code inside fences is kept. Headings inside code fences are ignored.
+  // A heading with body text and no sub-headings becomes a card. Parent headings below the H1
+  // become tags; the H1 is the deck name. Frontmatter, --- lines, Refs: lines and code fence
+  // markers are removed. Headings inside code blocks are ignored.
   const SKIP_HEADINGS = /^(references?|reference appendix|appendix|sources|bibliography|(table of )?contents)$/i;
   function inlineMd(s) {
     return s
@@ -193,7 +180,7 @@
     const out = [];
     for (const l of lines) {
       if (/^\s*(```|~~~)/.test(l)) { fence = !fence; continue; }
-      if (fence) { // code: keep verbatim, wrap as inline code so it renders monospace
+      if (fence) { // Code lines are kept and shown as inline code.
         if (l.trim()) out.push(l.includes('`') ? l : '`' + l + '`');
         continue;
       }
@@ -236,9 +223,8 @@
     return { cards, warnings, name: title };
   }
 
-  // ---------- Native deck format: YAML subset ----------
-  // Supports exactly what the deck schema needs: top-level scalars, a `cards:` list of maps,
-  // inline lists [a, b], quoted strings, and | / > block scalars. Not a general YAML parser.
+  // YAML subset: top-level keys, a cards: list, inline lists, quoted strings, | and > blocks.
+  // Anchors, nested maps and multiple documents are not supported.
   function unquote(v) {
     v = v.trim();
     if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
@@ -302,7 +288,6 @@
     return { cards, warnings, name: Array.isArray(doc) ? null : doc.deck || doc.name || null };
   }
 
-  // ---------- dispatch ----------
   function detect(filename, text) {
     const ext = (filename.split('.').pop() || '').toLowerCase();
     if (ext === 'yaml' || ext === 'yml') return 'yaml';
@@ -332,7 +317,7 @@
   function parseFile(filename, text) {
     const format = detect(filename, text);
     const res = PARSERS[format](text.replace(/^\uFEFF/, ''));
-    // de-duplicate within a deck by id
+    // Identical cards in one file are kept once.
     const seen = new Set();
     const cards = res.cards.filter((c) => (seen.has(c.id) ? false : seen.add(c.id)));
     const dupes = res.cards.length - cards.length;

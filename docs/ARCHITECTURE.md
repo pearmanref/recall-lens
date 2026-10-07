@@ -1,21 +1,23 @@
 # Architecture
 
-## The model: four layers, one direction
+## The model: five layers, one direction
 
 ```
- files ──▶ L1 parsers ──▶ canonical card ──▶ L2 store ◀──▶ L3 scheduler
-                                                  ▲               ▲
-                                                  └──── L4 app ───┘  (DOM)
+ links ──▶ L0 sources ──┐
+                        ├──▶ text ──▶ L1 parsers ──▶ canonical card ──▶ L2 store ◀──▶ L3 scheduler
+ dropped files ─────────┘                                                    ▲               ▲
+                                                                             └──── L4 app ───┘  (DOM)
 ```
 
 | Layer | File | Owns | Must not |
 |---|---|---|---|
+| L0 sources | `js/sources.js` | Deciding which links may be fetched, and downloading them within limits | Parse, store or touch DOM |
 | L1 ingest | `js/parsers.js` | Turning bytes into `{id, front, back, tags}` | Touch storage or DOM |
 | L2 state | `js/store.js` | Decks, progress, settings; persistence | Decide card order |
 | L3 logic | `js/scheduler.js` | Which card is next; what an answer does to progress | Touch DOM or storage directly |
 | L4 view | `js/app.js` | Rendering, input, wiring | Contain parsing or scheduling rules |
 
-The rule that makes this durable: **each layer has one reason to change.** A new file format changes only L1. Moving from localStorage to IndexedDB changes only L2. Real spaced repetition changes only L3. A redesign changes only L4 + CSS.
+The rule that makes this durable: **each layer has one reason to change.** A new place to load decks from changes only L0. A new file format changes only L1. Moving from localStorage to IndexedDB changes only L2. Real spaced repetition changes only L3. A redesign changes only L4 + CSS.
 
 The canonical card works like a normalized schema. Once everything is in that shape, nothing downstream cares where it came from.
 
@@ -33,6 +35,9 @@ ES modules are blocked by browsers over `file://`. Plain `<script>` tags sharing
 **No dependencies, no build.**
 Nothing to audit, nothing to break, works air-gapped. Revisit only if a feature truly needs a library.
 
+**Links are GitHub-only.**
+A page can only read another site's file if that site allows it, and GitHub's raw file host allows every site. Restricting links to `raw.githubusercontent.com`, `gist.githubusercontent.com` and the page's own site keeps loading reliable and the attack surface to one allowlist in `sources.js`. Downloads send no cookies or referrer, refuse redirects, stop at 2 MB and time out after 15 seconds.
+
 **Text-only rendering.**
 Imported files are untrusted input. Everything is HTML-escaped; only backtick code is formatted.
 
@@ -40,6 +45,7 @@ Imported files are untrusted input. Everything is HTML-escaped; only backtick co
 
 | Want | Where | How |
 |---|---|---|
+| New link host | `sources.js` | Add the host to `ALLOWED_HOSTS` only if it allows cross-site downloads; add tests for its link forms. |
 | New input format | `parsers.js` | Add `parseX(text) → {cards, warnings, name?}`, register in `PARSERS` and `detect()`. Add a sample + test. |
 | Spaced repetition: SM-2 or FSRS | `scheduler.js` | Add `due`, `interval`, `ease` to the progress record; filter `buildQueue` by `due <= now`. Keep the `Session` interface — `current`, `answer`, `undo`, `remaining` — so `app.js` is untouched. |
 | Bigger storage / per-deck files | `store.js` | Re-implement `load()/save()`; bump `SCHEMA` and add a step in `migrate()`. |

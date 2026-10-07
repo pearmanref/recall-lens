@@ -1,13 +1,13 @@
 # Recall Lens
 
-Local, offline flashcards in the browser. Load CSV, Anki text exports, plain text, Markdown notes, YAML or JSON; study with an in-session reinforcement queue; retire cards you already know.
+Local, offline flashcards in the browser. Load CSV, Anki text exports, plain text, Markdown notes, YAML or JSON from your device or from a GitHub link; study with an in-session reinforcement queue; retire cards you already know.
 
-No server, no build step, no dependencies.
+**Try it:** [open the Start Here deck](https://pearmanref.github.io/recall-lens/?deck=samples/start-here.yaml), or download the repo and open `index.html` offline.
 
 ## Use
 
-1. Double-click `index.html`. No server or install needed.
-2. Drop deck files on the left panel, or click **Import**. Start with `samples/start-here.yaml`.
+1. Open the [hosted page](https://pearmanref.github.io/recall-lens/), or double-click `index.html`. No install needed.
+2. Drop deck files on the left panel, click **Import**, or paste a GitHub file link into the box under the drop zone.
 3. Pick a tag and a limit, then **Start session**.
 
 | Key | Action |
@@ -20,6 +20,29 @@ No server, no build step, no dependencies.
 | `Esc` | End session |
 
 **Weakest first** orders the session by how often you have missed each card. **Reverse** shows the back first.
+
+## Load from a link
+
+Paste a link to a single deck file on GitHub and press **Load**. The page also accepts the address-bar link of a file page and converts it.
+
+| You paste | Recall Lens downloads |
+|---|---|
+| `https://github.com/<owner>/<repo>/blob/<branch>/<path>` | `https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>` |
+| `https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>` | the same link |
+| `https://gist.githubusercontent.com/<user>/<id>/raw/<file>` | the same link |
+
+**Share a deck as a link.** Add `?deck=` to the page address. Repeat it to load several decks:
+
+```
+https://pearmanref.github.io/recall-lens/?deck=https://github.com/<owner>/<repo>/blob/main/deck.csv
+https://pearmanref.github.io/recall-lens/?deck=samples/start-here.yaml&deck=samples/format-csv.csv
+```
+
+Paths such as `samples/start-here.yaml` load from the site serving Recall Lens, so they only work on the hosted page.
+
+Decks loaded from a link show a ↻ button. It downloads the deck again and keeps your progress on cards that did not change. A link to a branch such as `main` always gets the latest version, up to 5 minutes behind GitHub's cache; a link to a commit never changes.
+
+Limits: public GitHub files only, https only, 2 MB per file, 10 decks per `?deck=` link.
 
 ## Formats
 
@@ -36,17 +59,18 @@ Every format has a matching `samples/format-*` file. Full spec: [`docs/FORMATS.m
 
 ## Data
 
-Everything stays in the browser's `localStorage`. Nothing leaves the machine.
+Everything you study stays in the browser's `localStorage`. Nothing is uploaded.
 
-- **Decks** are content — re-import the file any time to update.
+- **Decks** are content — re-import the file or press ↻ any time to update.
 - **Progress** is keyed by a hash of each card's front+back, so it survives re-imports and is shared if the same card appears in two decks. Editing a card's text makes it a new card.
-- **Export progress** downloads a JSON backup; **Load progress** merges one back. Use it to move between machines or browsers.
+- **Export progress** downloads a JSON backup; **Load progress** merges one back. Use it to move between machines or browsers. The hosted page and a local copy keep separate progress.
 
 ## Project layout
 
 ```
 index.html        shell + markup
 css/app.css       theme tokens + components
+js/sources.js     L0 sources  — which links may load, download limits
 js/parsers.js     L1 ingest   — any format -> canonical card
 js/store.js       L2 state    — decks + progress persistence
 js/scheduler.js   L3 logic    — which card next
